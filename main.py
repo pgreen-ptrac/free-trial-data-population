@@ -5,6 +5,7 @@ import yaml
 import settings
 import utils.log_handler as logger
 from utils.auth_handler import Auth
+from pathlib import Path
 
 log = logger.log
 
@@ -25,27 +26,29 @@ def check_instance_health(auth: Auth) -> bool:
     return False
 
 
-def import_client_data(auth: Auth, ptrac_file: str) -> None:
-    """Import client information from a ptrac file."""
-    # TODO: call the API that imports client data using the ptrac file
-    # with open(ptrac_file, "rb") as f:
-    #     payload = {"file": f}
-    #     api.clients.import_client_ptrac(auth.base_url,
-    #                                    auth.get_auth_headers(), payload)
-    log.info(f"Would import client data from {ptrac_file}")
+def import_reports(auth: Auth, client_id: int, folder: str) -> None:
+    """Import all ``.ptrac`` files in ``folder`` for the provided ``client_id``."""
+    path = Path(folder)
+    if not path.is_dir():
+        log.error(f"{folder} is not a valid directory")
+        return
 
+    ptrac_files = sorted(path.glob("*.ptrac"))
+    if not ptrac_files:
+        log.warning(f"No .ptrac files found in {folder}")
+        return
 
-def import_report_data(auth: Auth, client_id: int, ptrac_file: str) -> None:
-    """Import a report for a client from a ptrac file."""
-    # TODO: call the API that imports report data using the ptrac file
-    # with open(ptrac_file, "rb") as f:
-    #     payload = {"file": f}
-    #     api.reports.import_ptrac_report(
-    #         auth.base_url, auth.get_auth_headers(), client_id, payload
-    #     )
-    log.info(
-        f"Would import report data for client {client_id} from {ptrac_file}"
-    )
+    for file_path in ptrac_files:
+        try:
+            with open(file_path, "rb") as f:
+                payload = {"file": f}
+                api.reports.import_ptrac_report(
+                    auth.base_url, auth.get_auth_headers(), client_id, payload
+                )
+            log.success(f"Imported report from {file_path}")
+        except Exception as exc:
+            log.exception(exc)
+            log.error(f"Failed to import report from {file_path}")
 
 
 def create_custom_rbac_role(auth: Auth, role_payload: dict) -> None:
@@ -77,14 +80,10 @@ def main() -> None:
         log.error("Instance health check failed")
         return
 
-    client_ptrac_file = args.get("client_ptrac_file")
-    if client_ptrac_file:
-        import_client_data(auth, client_ptrac_file)
-
-    report_ptrac_file = args.get("report_ptrac_file")
     client_id = args.get("client_id")
-    if report_ptrac_file and client_id:
-        import_report_data(auth, client_id, report_ptrac_file)
+    ptrac_folder = args.get("ptrac_folder")
+    if client_id and ptrac_folder:
+        import_reports(auth, client_id, ptrac_folder)
 
     role_payload = args.get("rbac_role_payload")
     if role_payload:
