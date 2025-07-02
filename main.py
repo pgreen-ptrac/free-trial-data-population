@@ -48,17 +48,31 @@ def import_report_data(auth: Auth, client_id: int, ptrac_file: str) -> None:
     )
 
 
-def create_custom_rbac_role(auth: Auth, role_payload: dict) -> None:
+def create_custom_rbac_role(auth: Auth) -> None:
     """Create a custom RBAC role on the instance."""
-    # TODO: call the API that creates the RBAC role using ``role_payload``
-    # response = api._admin._security.rbac.create_security_role(
-    #     auth.base_url, auth.get_auth_headers(), auth.tenant_id
-    # )
-    # api._admin._security.rbac.update_security_role_info(
-    #     auth.base_url, auth.get_auth_headers(), auth.tenant_id,
-    #     response.json.get("id"), role_payload
-    # )
-    log.info("Would create a custom RBAC role with provided payload")
+
+    log.info("Creating custom RBAC role")
+
+    response = api._admin._security.rbac.create_security_role(
+        auth.base_url, auth.get_auth_headers(), auth.tenant_id
+    )
+    role_id = response.json.get("id")
+
+    payload = {
+        "name": "Automation Role",
+        "description": "Role created by automation script",
+        "key": f"TENANT_{auth.tenant_id}_ROLE_AUTOMATION_ROLE",
+    }
+
+    api._admin._security.rbac.update_security_role_info(
+        auth.base_url,
+        auth.get_auth_headers(),
+        auth.tenant_id,
+        role_id,
+        payload,
+    )
+
+    log.success(f"Created RBAC role '{payload['name']}'")
 
 
 def main() -> None:
@@ -86,9 +100,7 @@ def main() -> None:
     if report_ptrac_file and client_id:
         import_report_data(auth, client_id, report_ptrac_file)
 
-    role_payload = args.get("rbac_role_payload")
-    if role_payload:
-        create_custom_rbac_role(auth, role_payload)
+    create_custom_rbac_role(auth)
 
 
 if __name__ == "__main__":
