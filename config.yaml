@@ -4,3 +4,4 @@ username:
 password: 
 
 ptrac_folder: ./reports_to_import
+custom_rbac_payload: ./custom_rbac_payload.json

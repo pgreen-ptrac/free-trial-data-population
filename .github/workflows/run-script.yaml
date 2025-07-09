@@ -1,0 +1,38 @@
+name: Run Data Population
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_url:
+        description: 'PlexTrac instance URL'
+        required: true
+        type: string
+      username:
+        description: 'Username'
+        required: true
+        type: string
+      password:
+        description: 'Password'
+        required: true
+        type: string
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          pip install pipenv
+          pipenv install --system --deploy
+      - name: Run script
+        env:
+          INSTANCE_URL: ${{ github.event.inputs.instance_url }}
+          USERNAME: ${{ github.event.inputs.username }}
+          PASSWORD: ${{ github.event.inputs.password }}
+        run: |
+          python main.py
