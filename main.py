@@ -2,6 +2,7 @@
 
 import yaml
 import json
+import os
 
 import settings
 import utils.log_handler as logger
@@ -133,12 +134,12 @@ def import_reports(auth: Auth, folder: str) -> None:
             scorecard["reports"].append({"file": file_path.name, "status": False, "message": str(exc)})
 
 
-def create_custom_rbac_role(auth: Auth) -> None:
+def create_custom_rbac_role(auth: Auth, payload_file: str) -> None:
     """Create a custom RBAC role on the instance using a JSON payload file."""
 
     log.info("Creating custom RBAC role")
 
-    payload_path = Path("custom_rbac_payload.json")
+    payload_path = Path(payload_file) if payload_file else Path("custom_rbac_payload.json")
     if not payload_path.is_file():
         log.exception(f"Payload file {payload_path} not found")
         scorecard["rbac_role"] = {"status": False, "message": "payload file not found"}
@@ -169,7 +170,15 @@ def main() -> None:
         print(line)
 
     with open("config.yaml", "r") as f:
-        args = yaml.safe_load(f)
+        config_args = yaml.safe_load(f) or {}
+
+    action_args = {
+        "instance_url": os.getenv("INSTANCE_URL"),
+        "username": os.getenv("USERNAME"),
+        "password": os.getenv("PASSWORD"),
+    }
+
+    args = {**config_args, **{k: v for k, v in action_args.items() if v}}
 
     log.info(f'Running on {args.get("instance_url", "")}')
 
@@ -185,7 +194,7 @@ def main() -> None:
     else:
         log.warning("No ptrac_folder specified in config.yaml. Skipping importing .ptrac reports...")
 
-    create_custom_rbac_role(auth)
+    create_custom_rbac_role(auth, args.get("custom_rbac_payload"))
 
     print_scorecard()
 
