@@ -14,8 +14,6 @@ log = logger.log
 import api
 
 scorecard = {
-    "instance_health": None,
-    "authentication": None,
     "reports": [],
     "rbac_role": None,
 }
@@ -24,31 +22,31 @@ scorecard = {
 def print_scorecard() -> None:
     """Print a summary of successes and failures."""
     print("\n---------- Scorecard ----------")
-    if scorecard["instance_health"] is not None:
-        print(
-            f"Instance Health Check: {'Success' if scorecard['instance_health'] else 'Failed'}"
-        )
-    if scorecard["authentication"] is not None:
-        print(
-            f"Authentication: {'Success' if scorecard['authentication'] else 'Failed'}"
-        )
 
     if scorecard["reports"]:
         print("\nReport Imports:")
         for entry in scorecard["reports"]:
-            status = "Success" if entry.get("status") else "Failed"
+            status = "SUCCESS" if entry.get("status") else "FAILED"
             msg = f" - {entry.get('message')}" if entry.get("message") else ""
-            print(f"  {entry.get('file')}: {status}{msg}")
+            final_message = f"  {entry.get('file')}: {status}{msg}"
+            if status == "FAILED":
+                print(f'\x1b[1;31m{final_message}\x1b[0m')
+            else:
+                print(f'\x1b[1;32m{final_message}\x1b[0m')
     else:
         print("\nReport Imports: None")
 
     if scorecard["rbac_role"] is not None:
-        status = "Success" if scorecard["rbac_role"].get("status") else "Failed"
+        status = "SUCCESS" if scorecard["rbac_role"].get("status") else "FAILED"
         role = scorecard["rbac_role"].get("role", "")
         msg = scorecard["rbac_role"].get("message", "")
         details = f" ({role})" if role else ""
         message = f" - {msg}" if msg and not scorecard["rbac_role"].get("status") else ""
-        print(f"RBAC Role Creation{details}: {status}{message}")
+        final_message = f"RBAC Role Creation{details}: {status}{message}"
+        if status == "FAILED":
+            print(f'\x1b[1;31m{final_message}\x1b[0m')
+        else:
+            print(f'\x1b[1;32m{final_message}\x1b[0m')
 
     print("--------------------------------\n")
 
@@ -72,6 +70,7 @@ def import_reports(auth: Auth, folder: str) -> None:
     ptrac_files = sorted(path.glob("*.ptrac"))
     if not ptrac_files:
         log.warning(f"No .ptrac files found in {folder}")
+        scorecard["reports"].append({"file": folder, "status": False, "message": f"no .ptrac files found in '{folder}'"})
         return
 
     for file_path in ptrac_files:
@@ -82,6 +81,7 @@ def import_reports(auth: Auth, folder: str) -> None:
         clients = []
         if not data_utils.get_page_of_clients(clients=clients, auth=auth):
             log.exception("Failed to retrieve clients from Plextrac instance. Skipping...")
+            scorecard["reports"].append({"file": file_path.name, "status": False, "message": "error retrieving clients from PT instance, couldn't verify where to import report"})
             continue
 
         try:
@@ -176,19 +176,8 @@ def main() -> None:
     auth = Auth(args)
     if not auth.check_instance_health():
         log.error("Instance health check failed")
-        scorecard["instance_health"] = False
-        print_scorecard()
         return
-    scorecard["instance_health"] = True
-
-    try:
-        auth.handle_authentication()
-        scorecard["authentication"] = bool(auth.auth_headers.get("Authorization"))
-    except Exception as e:
-        log.exception(e)
-        scorecard["authentication"] = False
-        print_scorecard()
-        return
+    auth.handle_authentication()
 
     ptrac_folder = args.get("ptrac_folder")
     if ptrac_folder:
@@ -203,4 +192,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
