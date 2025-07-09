@@ -95,30 +95,24 @@ def create_custom_rbac_role(auth: Auth) -> None:
 
     payload_path = Path("custom_rbac_payload.json")
     if not payload_path.is_file():
-        log.error(f"Payload file {payload_path} not found")
+        log.exception(f"Payload file {payload_path} not found")
         return
 
     try:
         with open(payload_path, "r") as f:
             payload = json.load(f)
-    except Exception as exc:
-        log.exception(f"Failed to load payload file: {exc}")
+    except Exception as e:
+        log.exception(f"Failed to load payload file: {e}")
         return
 
-    response = api._admin._security.rbac.create_security_role(
-        auth.base_url, auth.get_auth_headers(), auth.tenant_id
-    )
-    role_id = response.json.get("id")
-
-    api._admin._security.rbac.update_security_role_info(
-        auth.base_url,
-        auth.get_auth_headers(),
-        auth.tenant_id,
-        role_id,
-        payload,
-    )
-
-    log.success(f"Created RBAC role '{payload.get('name', '')}'")
+    try:
+        response = api._admin._security.rbac.create_security_role(
+            auth.base_url, auth.get_auth_headers(), 0, payload
+        )
+        log.success(f"Created RBAC role '{payload.get('title', '')}'")
+    except Exception as e:
+        log.exception(f"Failed to create RBAC role: {e}")
+        return
 
 
 def main() -> None:

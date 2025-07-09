@@ -40,14 +40,14 @@ This is checking against a key generated from the name where letters are capital
     path = f'/tenants/{tenantId}/security/role/availability'
     return request.post(base_url, headers, root+path, name, payload)
 
-def create_security_role(base_url, headers, tenantId):
+def create_security_role(base_url, headers, tenantId, payload):
     """
     Creates a new RBAC security role.
     """
     name = "Create Security Role"
     root = "/api/v2"
     path = f'/tenants/{tenantId}/security/role'
-    return request.post(base_url, headers, root+path, name)
+    return request.post(base_url, headers, root+path, name, payload)
 
 def update_security_role_info(base_url, headers, tenantId, roleId, payload):
     """
