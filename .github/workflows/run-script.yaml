@@ -1,4 +1,4 @@
-name: Run Data Population
+name: Run Free Trial Instance Data Population
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
         run: |
           pip install pipenv
           pipenv install --system --deploy
-          
+
       - name: Run script
         env:
           INSTANCE_URL: ${{ github.event.inputs.instance_url }}
