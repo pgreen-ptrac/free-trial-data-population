@@ -1,8 +1,6 @@
 # Example configuration for the import script
-instance_url: https://yourapp.plextrac.com
-username: your.username
-password: your.password
-cf_token:
-client_id: 1234
-ptrac_folder: ./ptrac_files
-rbac_role_payload:
+instance_url: 
+username: 
+password: 
+
+ptrac_folder: ./reports_to_import

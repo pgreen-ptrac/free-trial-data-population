@@ -1,10 +1,12 @@
 """Utility script for post-provisioning automation."""
 
 import yaml
+import json
 
 import settings
 import utils.log_handler as logger
 from utils.auth_handler import Auth
+import utils.data_utils as data_utils
 from pathlib import Path
 
 log = logger.log
@@ -12,22 +14,8 @@ log = logger.log
 import api
 
 
-def check_instance_health(auth: Auth) -> bool:
-    """Verify the newly created instance is up and responding."""
-    log.info("Verifying instance health")
-    try:
-        response = api.tenant.root_request(auth.base_url, {})
-        if response.json.get("text") == "Authenticate at /authenticate":
-            log.success("Instance is online")
-            return True
-        log.error("Unexpected response when checking instance health")
-    except Exception as exc:
-        log.exception(exc)
-    return False
-
-
-def import_reports(auth: Auth, client_id: int, folder: str) -> None:
-    """Import all ``.ptrac`` files in ``folder`` for the provided ``client_id``."""
+def import_reports(auth: Auth, folder: str) -> None:
+    """Import all ``.ptrac`` files in ``folder`` under their matching client found in the instance"""
     path = Path(folder)
     if not path.is_dir():
         log.error(f"{folder} is not a valid directory")
@@ -39,16 +27,58 @@ def import_reports(auth: Auth, client_id: int, folder: str) -> None:
         return
 
     for file_path in ptrac_files:
+        log.info(f"Processing file: {file_path}")
+        file_path_name = file_path.name
+
+        existing_client = False
+        existing_client_id = None
+        clients = []
+        if not data_utils.get_page_of_clients(clients=clients, auth=auth):
+            log.exception("Failed to retrieve clients from Plextrac instance. Skipping...")
+            continue
+
         try:
             with open(file_path, "rb") as f:
-                payload = {"file": f}
-                api.reports.import_ptrac_report(
-                    auth.base_url, auth.get_auth_headers(), client_id, payload
-                )
-            log.success(f"Imported report from {file_path}")
+                # Check if the client already exists
+                file_json = json.load(f)
+                client_name = file_json.get("client_info", {}).get("name", "")
+                report_name = file_json.get("report_info", {}).get("name", "")
+                f.seek(0)  # Reset file pointer to the beginning after reading JSON
+                for client in clients:
+                    if client.get("name") == client_name:
+                        existing_client = True
+                        existing_client_id = client.get("client_id")
+                        break
+
+                if not existing_client:
+                    # Import the report and create a new client
+                    try:
+                        files = {
+                            "file": (file_path_name, f, "application/octet-stream")
+                        }
+                        response = api.reports.import_ptrac_report_keep_client_details(
+                            auth.base_url, auth.get_auth_headers(), files
+                        )
+                        log.success(f"Imported report '{report_name}' for new client '{client_name}'")
+                    except Exception as e:
+                        log.exception(f"Failed to import report '{report_name}' for new client {client_name}: {e}")
+                        continue
+                else:
+                    # Import the report to an existing client
+                    try:
+                        files = {
+                            "file": (file_path_name, f, "application/octet-stream")
+                        }
+                        response = api.reports.import_ptrac_report(
+                            auth.base_url, auth.get_auth_headers(), existing_client_id, files
+                        )
+                        log.success(f"Imported report '{report_name}' for existing client '{client_name}'")
+                    except Exception as e:
+                        log.exception(f"Failed to import report '{report_name}' for existing client {client_name}: {e}")
+                        continue
+
         except Exception as exc:
-            log.exception(exc)
-            log.error(f"Failed to import report from {file_path}")
+            log.exception(f"Failed to import report from {file_path}:\n{exc}")
 
 
 def create_custom_rbac_role(auth: Auth) -> None:
@@ -85,19 +115,19 @@ def main() -> None:
     with open("config.yaml", "r") as f:
         args = yaml.safe_load(f)
 
-    log.info(args.get("instance_url"))
+    log.info(f'Running on {args.get("instance_url", "")}')
 
     auth = Auth(args)
-    auth.handle_authentication()
-
-    if not check_instance_health(auth):
+    if not auth.check_instance_health():
         log.error("Instance health check failed")
         return
+    auth.handle_authentication()
 
-    client_id = args.get("client_id")
     ptrac_folder = args.get("ptrac_folder")
-    if client_id and ptrac_folder:
-        import_reports(auth, client_id, ptrac_folder)
+    if ptrac_folder:
+        import_reports(auth, ptrac_folder)
+    else:
+        log.warning("No ptrac_folder specified in config.yaml. Skipping importing .ptrac reports...")
 
     create_custom_rbac_role(auth)
 

@@ -12,7 +12,7 @@ save_logs_to_file = False
 verify_ssl = True
 # number of times to rety a request before throwing an error. will only throw the last error encountered if
 # number of retries is exceeded. set to 0 to disable retrying requests
-retries = 5
+retries = 0
 
 # description of script that will be print line by line when the script is run
 script_info = ["====================================================================",

@@ -42,6 +42,20 @@ class Auth():
             self.handle_authentication()
         
         return self.auth_headers
+    
+
+    def check_instance_health(self) -> bool:
+        """Verify the provided instance is up and responding."""
+        log.info("Verifying instance health")
+        try:
+            response = api.tenant.root_request(self.base_url, {})
+            if response.json.get("text") == "Authenticate at /authenticate":
+                log.success("Instance is online")
+                return True
+            log.error("Unexpected response when checking instance health")
+        except Exception as exc:
+            log.exception(exc)
+        return False
 
 
     def handle_instance_url(self):
