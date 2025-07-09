@@ -139,7 +139,7 @@ def create_custom_rbac_role(auth: Auth, payload_file: str) -> None:
 
     log.info("Creating custom RBAC role")
 
-    payload_path = Path(payload_file) if payload_file else Path("custom_rbac_payload.json")
+    payload_path = Path(payload_file) if payload_file != "" else Path("custom_rbac_payload.json")
     if not payload_path.is_file():
         log.exception(f"Payload file {payload_path} not found")
         scorecard["rbac_role"] = {"status": False, "message": "payload file not found"}
@@ -194,7 +194,7 @@ def main() -> None:
     else:
         log.warning("No ptrac_folder specified in config.yaml. Skipping importing .ptrac reports...")
 
-    create_custom_rbac_role(auth, args.get("custom_rbac_payload"))
+    create_custom_rbac_role(auth, args.get("custom_rbac_payload", ""))
 
     print_scorecard()
 
