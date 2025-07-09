@@ -82,20 +82,26 @@ def import_reports(auth: Auth, folder: str) -> None:
 
 
 def create_custom_rbac_role(auth: Auth) -> None:
-    """Create a custom RBAC role on the instance."""
+    """Create a custom RBAC role on the instance using a JSON payload file."""
 
     log.info("Creating custom RBAC role")
+
+    payload_path = Path("custom_rbac_payload.json")
+    if not payload_path.is_file():
+        log.error(f"Payload file {payload_path} not found")
+        return
+
+    try:
+        with open(payload_path, "r") as f:
+            payload = json.load(f)
+    except Exception as exc:
+        log.exception(f"Failed to load payload file: {exc}")
+        return
 
     response = api._admin._security.rbac.create_security_role(
         auth.base_url, auth.get_auth_headers(), auth.tenant_id
     )
     role_id = response.json.get("id")
-
-    payload = {
-        "name": "Automation Role",
-        "description": "Role created by automation script",
-        "key": f"TENANT_{auth.tenant_id}_ROLE_AUTOMATION_ROLE",
-    }
 
     api._admin._security.rbac.update_security_role_info(
         auth.base_url,
@@ -105,7 +111,7 @@ def create_custom_rbac_role(auth: Auth) -> None:
         payload,
     )
 
-    log.success(f"Created RBAC role '{payload['name']}'")
+    log.success(f"Created RBAC role '{payload.get('name', '')}'")
 
 
 def main() -> None:
