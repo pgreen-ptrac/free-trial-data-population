@@ -15,7 +15,15 @@ import api
 
 
 def import_reports(auth: Auth, folder: str) -> None:
-    """Import all ``.ptrac`` files in ``folder`` under their matching client found in the instance"""
+    """
+    Import all ``.ptrac`` files in ``report_to_import`` under their matching client found in the instance
+    
+    All .ptrac files in this folder will be imported during script execution. Any .ptrac can be added and will import.
+
+    .ptrac files will be imported into clients. If a client doesn't exist that matches the client in the .ptrac,
+    it will be imported with the option to Keep Original Client Details checked which creates a new client for
+    the report to be imported to.
+    """
     path = Path(folder)
     if not path.is_dir():
         log.error(f"{folder} is not a valid directory")
@@ -28,7 +36,6 @@ def import_reports(auth: Auth, folder: str) -> None:
 
     for file_path in ptrac_files:
         log.info(f"Processing file: {file_path}")
-        file_path_name = file_path.name
 
         existing_client = False
         existing_client_id = None
@@ -54,7 +61,7 @@ def import_reports(auth: Auth, folder: str) -> None:
                     # Import the report and create a new client
                     try:
                         files = {
-                            "file": (file_path_name, f, "application/octet-stream")
+                            "file": (file_path.name, f, "application/octet-stream")
                         }
                         response = api.reports.import_ptrac_report_keep_client_details(
                             auth.base_url, auth.get_auth_headers(), files
@@ -67,7 +74,7 @@ def import_reports(auth: Auth, folder: str) -> None:
                     # Import the report to an existing client
                     try:
                         files = {
-                            "file": (file_path_name, f, "application/octet-stream")
+                            "file": (file_path.name, f, "application/octet-stream")
                         }
                         response = api.reports.import_ptrac_report(
                             auth.base_url, auth.get_auth_headers(), existing_client_id, files
