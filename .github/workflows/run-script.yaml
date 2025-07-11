@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install pipenv
-          pipenv install --system --deploy
+          pipenv install --deploy
 
       - name: Run script
         env:
@@ -45,4 +45,4 @@ jobs:
           USERNAME: ${{ github.event.inputs.username }}
           PASSWORD: ${{ github.event.inputs.password }}
         run: |
-          python main.py
+          pipenv run python main.py
