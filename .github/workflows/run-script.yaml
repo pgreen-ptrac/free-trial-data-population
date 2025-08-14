@@ -27,6 +27,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Mask Password
+        shell: bash
+        run: |
+          API_PASSWORD=$(jq -r '.inputs.password' $GITHUB_EVENT_PATH)
+          echo ::add-mask::$API_PASSWORD
+          echo API_PASSWORD=$API_PASSWORD >> $GITHUB_ENV
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -43,6 +50,6 @@ jobs:
         env:
           INSTANCE_URL: ${{ github.event.inputs.instance_url }}
           USERNAME: ${{ github.event.inputs.username }}
-          PASSWORD: ${{ github.event.inputs.password }}
+          PASSWORD: ${{ env.API_PASSWORD }}
         run: |
           pipenv run python main.py
